@@ -1,5 +1,10 @@
-from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.common.by import By 
 from selenium.webdriver.support import expected_conditions as EC
+from browser import setup_driver
+from utils import read_dicts_from_csv, save_dicts_to_csv
+
+import time
 
 def check_if_company_listing_last_page_achieved(driver, wait):
     # Checks if max page in company listing is achieved
@@ -25,18 +30,18 @@ def get_company_hyperlinks_in_page(driver, wait):
           (By.CSS_SELECTOR, "[id^='segmentos_botao_ver_empresa_'] .rs-line-clamp-3")
         )
     )
-
     # extract hrefs from obtained elements
+    companies = {el.get_attribute("text") for el in links_elements}
     links = [el.get_attribute("href") for el in links_elements]
     
-    return(links)
+    return dict(zip(companies, links))
 
 
 def iterate_category_company_listing(driver, wait, category_url):
     # Gets all company urls in category page
     # Company listing starts at "Melhores" tab at (child=2) 
     # css=.rs-bg-transparent:nth-child(2)
-    company_urls = []
+    companies_urls = 
     # Go to category url
     driver.get(category_url)
     # Iterate over tab childs
@@ -53,7 +58,7 @@ def iterate_category_company_listing(driver, wait, category_url):
         not_final_page = True
         # Iterate over pages (dynamic display)
         while not_final_page:
-            company_urls.extend(get_company_hyperlinks_in_page(driver, wait))
+            companies_urls.update(get_company_hyperlinks_in_page(driver, wait))
 
             # Check if final_page is achieved, if not, click in next page button
             not_final_page = check_if_company_listing_last_page_achieved(driver, wait)
@@ -64,7 +69,20 @@ def iterate_category_company_listing(driver, wait, category_url):
                 )
                 next_button.click()
 
+    return companies_urls
 
-    return company_urls
+
+def scrape_categories():
+    # Scrape all saved categories for their company listings
+    lines_dicts = read_dicts_from_csv('segmentos.csv')
+    results = []
+
+    for x in lines_dicts:
+        driver = setup_driver()
+        wait = WebDriverWait(driver, 30)
+        time.sleep(5)
+
+        driver.get(x['href'])
+        companies_urls = iterate_category_company_listing(driver, wait, x['href'])
 
 
